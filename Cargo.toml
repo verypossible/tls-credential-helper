@@ -1,0 +1,13 @@
+[package]
+name = "tls-credential-helper"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+chrono = "0"
+clap = { version = "3.0.0-beta.2", default-features = false, features = ["std", "color", "cargo"]}
+colored = "2"
+exitcode = "1"
+openssl = { version = "0", features = ["vendored"] }
+strum_macros = "0.21"
+uuid = { version = "0", features = ["serde", "v4"] }

@@ -1,0 +1,47 @@
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+        required: false
+        default: false
+name: Build
+jobs:
+  build:
+    name: Build
+    strategy:
+      matrix:
+        target:
+          - name: x86_64-apple-darwin
+            runs-on: macos-latest
+    runs-on: ${{ matrix.target.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Setup Rust toolchains
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target.name }}
+          override: true
+      - name: Build binaries
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --target=${{ matrix.target.name }}
+      - name: Rename binaries
+        run: |
+          mv -v target/${{ matrix.target.name }}/debug/tls-credential-helper tch-$GITHUB_SHA
+      - name: Upload binaries to GitHub Actions
+        uses: actions/upload-artifact@v2
+        with:
+          name: tch-${{ github.sha }}
+          path: tch-${{ github.sha }}
+          if-no-files-found: error
+      # Enable tmate debugging of manually-triggered workflows if the input option was provided
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 5  # <--
+        if: ${{ failure() || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled) }}

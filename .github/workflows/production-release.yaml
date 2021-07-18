@@ -1,0 +1,46 @@
+on:
+  push:
+    tags:
+      - '*'  # every tag not containing /
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+        required: false
+        default: false
+name: Build
+jobs:
+  build:
+    name: Build
+    strategy:
+      matrix:
+        target:
+          - name: x86_64-apple-darwin
+            runs-on: macos-latest
+    runs-on: ${{ matrix.target.runs-on }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target.name }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target=${{ matrix.target.name }}
+      - name: Rename binaries
+        run: |
+          mv target/${{ matrix.target.name }}/debug/tls-credential-helper tch
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: tch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Enable tmate debugging of manually-triggered workflows if the input option was provided
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 5  # <--
+        if: ${{ failure() || (github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled) }}
